@@ -1,0 +1,8 @@
+Advent of Code 2019 - https://adventofcode.com/2019
+
+> git clone --recurse-submodules https://github.com/ileonte/AoC2019.git aoc2019
+> cd aoc2019
+> mkdir build_dir
+> cd build_dir
+> cmake .. -DCMAKE_BUILD_TYPE=Release
+> make

@@ -14,7 +14,7 @@ function(aoc_day num)
     target_link_libraries("day${num}" fmt)
 endfunction()
 
-project("AoC2k18" VERSION 1.0 DESCRIPTION "Advent of Code 2019" LANGUAGES CXX C)
+project("AoC2k19" VERSION 1.0 DESCRIPTION "Advent of Code 2019" LANGUAGES CXX C)
 
 add_subdirectory(libs/fmt)
 
@@ -37,3 +37,8 @@ aoc_day(16 "main.cpp")
 aoc_day(18 "main.cpp")
 aoc_day(19 "main.cpp")
 aoc_day(20 "main.cpp")
+aoc_day(21 "main.cpp")
+aoc_day(22 "main.cpp")
+aoc_day(23 "main.cpp")
+aoc_day(24 "main.cpp")
+aoc_day(25 "main.cpp")

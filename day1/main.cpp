@@ -20,13 +20,13 @@ int main() {
     long total_complex{0};
     long mass{0};
 
-    std::cin >> mass;
-    while (!std::cin.fail()) {
+    while (std::cin >> mass) {
         total_simple += fuel_requirements_simple(mass);
         total_complex += fuel_requirements_complex(mass);
-        std::cin >> mass;
     }
+
     fmt::print("{}\n", total_simple);
     fmt::print("{}\n", total_complex);
+
     return 0;
 }

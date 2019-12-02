@@ -15,9 +15,15 @@ struct computer_state {
 
 static inline struct computer_state read_initial_state() {
     memory_value_t v{};
+    std::string buff;
     std::vector<memory_value_t> memory;
-    while (std::scanf("%ld,", &v) > 0)
+    while (std::getline(std::cin, buff, ',')) {
+        std::string_view sv = aoc::trim(buff);
+        if (sv.empty()) continue;
+        auto ret = std::from_chars(sv.cbegin(), sv.cend(), v);
+        if (ret.ec != std::errc()) break;
         memory.push_back(v);
+    }
     return {std::move(memory), 0};
 }
 
@@ -69,13 +75,14 @@ int main() {
         test({2, 4, 4, 5, 99, 0});
         test({1, 1, 1, 4, 99, 5, 6, 0, 99});
     }
-    auto program = read_initial_state();
 
-    fmt::print("{}\n", compute(program, 12, 2));
+    auto state = read_initial_state();
+
+    fmt::print("{}\n", compute(state, 12, 2));
 
     for (memory_value_t noun = 0; noun < 100; noun++) {
         for (memory_value_t verb = 0; verb < 100; verb++) {
-            if (compute(program, noun, verb) == 19690720) {
+            if (compute(state, noun, verb) == 19690720) {
                 fmt::print("{}\n", 100 * noun + verb);
                 return 0;
             }

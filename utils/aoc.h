@@ -6,6 +6,8 @@
 #include <vector>
 #include <set>
 #include <locale>
+#include <string_view>
+#include <charconv>
 
 #if !defined(DEBUG)
 #define DEBUG 0
@@ -31,18 +33,9 @@ namespace fmt {
 }
 
 namespace aoc {
-    inline void set_input_delimiters(const std::vector<char>& delims) {
-        using cctype = std::ctype<char>;
-        const auto original_table = cctype::classic_table();
-        std::vector<cctype::mask> our_table(original_table, original_table + cctype::table_size);
-        for (auto& m : our_table)
-            m &= ~std::ctype_base::space;
-        for (auto c : delims)
-            our_table[c] |= std::ctype_base::space;
-        std::cin.imbue(std::locale(std::cin.getloc(), new cctype(our_table.data())));
-    }
-
-    inline void reset_input_delimiters() {
-        std::cin.imbue(std::locale());
+    inline std::string_view trim(std::string_view sv) {
+        while (std::isspace(sv.front())) sv.remove_prefix(1);
+        while (std::isspace(sv.back())) sv.remove_suffix(1);
+        return sv;
     }
 }

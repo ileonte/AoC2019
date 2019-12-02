@@ -13,6 +13,7 @@ function(aoc_day num)
     add_executable("day${num}" ${ACTUAL_SOURCES})
     target_include_directories("day${num}" PRIVATE "utils/")
     target_link_libraries("day${num}" fmt)
+    target_compile_definitions("day${num}" PUBLIC "$<IF:$<CONFIG:DEBUG>,DEBUG=1,DEBUG=0>")
 endfunction()
 
 project("AoC2k19" VERSION 1.0 DESCRIPTION "Advent of Code 2019" LANGUAGES CXX C)

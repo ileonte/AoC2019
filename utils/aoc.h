@@ -7,6 +7,10 @@
 #include <set>
 #include <locale>
 
+#if !defined(DEBUG)
+#define DEBUG 0
+#endif
+
 namespace fmt {
     template <typename T>
     struct formatter<std::vector<T>> {

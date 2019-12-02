@@ -11,6 +11,7 @@ function(aoc_day num)
         list(APPEND ACTUAL_SOURCES "day${num}/${fname}")
     endforeach()
     add_executable("day${num}" ${ACTUAL_SOURCES})
+    target_include_directories("day${num}" PRIVATE "utils/")
     target_link_libraries("day${num}" fmt)
 endfunction()
 

@@ -11,6 +11,8 @@
 #include <functional>
 #include <algorithm>
 #include <numeric>
+#include <array>
+#include <deque>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -27,6 +29,23 @@ namespace fmt {
 
         template <typename FormatContext>
         auto format(const std::vector<T>& v, FormatContext &ctx) {
+            format_to(ctx.out(), "[");
+            if (v.size() > 0) {
+                format_to(ctx.out(), "{}", v.at(0));
+                for (auto i = 1; i < v.size(); i++)
+                    format_to(ctx.out(), ", {}", v.at(i));
+            }
+            return format_to(ctx.out(), "]");
+        }
+    };
+
+    template <typename T>
+    struct formatter<std::deque<T>> {
+        template <typename ParseContext>
+        constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+        template <typename FormatContext>
+        auto format(const std::deque<T>& v, FormatContext &ctx) {
             format_to(ctx.out(), "[");
             if (v.size() > 0) {
                 format_to(ctx.out(), "{}", v.at(0));
@@ -88,4 +107,13 @@ namespace aoc {
         }
         return ret;
     }
+
+    template <typename T>
+    constexpr T cpow(T base, T pow) {
+        T ret{1};
+        for (T p = 1; p <= pow; p++)
+            ret *= base;
+        return ret;
+    }
+
 }

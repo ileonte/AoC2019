@@ -11,14 +11,16 @@ function(aoc_day num)
         list(APPEND ACTUAL_SOURCES "day${num}/${fname}")
     endforeach()
     add_executable("day${num}" ${ACTUAL_SOURCES})
-    target_include_directories("day${num}" PRIVATE "utils/")
-    target_link_libraries("day${num}" fmt)
+    target_link_libraries("day${num}" fmt aoc_common)
     target_compile_definitions("day${num}" PUBLIC "$<IF:$<CONFIG:DEBUG>,DEBUG=1,DEBUG=0>")
 endfunction()
 
 project("AoC2k19" VERSION 1.0 DESCRIPTION "Advent of Code 2019" LANGUAGES CXX C)
 
 add_subdirectory(libs/fmt)
+
+add_library("aoc_common" INTERFACE)
+target_include_directories("aoc_common" INTERFACE "common/")
 
 aoc_day(1 "main.cpp")
 aoc_day(2 "main.cpp")

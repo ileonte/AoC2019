@@ -25,7 +25,7 @@ int main() {
         aoc::computer c(src);
         c.add_input(in);
         c.execute();
-        fmt::print("{}\n", c.outputs());
+        fmt::print("{}\n", c.outputs().back());
     };
 
     run_test(computer, 1);

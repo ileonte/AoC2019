@@ -205,7 +205,7 @@ namespace aoc {
             switch (mode) {
                 case AM_POSITION: return memory_.at(size_t(memory_.at(size_t(address))));
                 case AM_IMMEDIATE: return memory_.at(size_t(address));
-                case AM_RELBASE: return memory_.at(size_t(address + reg_ref<RC_RELBASE>()));
+                case AM_RELBASE: return memory_.at(size_t(memory_.at(size_t(address)) + reg_ref<RC_RELBASE>()));
                 default: std::abort();
             }
         }
@@ -278,7 +278,7 @@ namespace aoc {
         }
         static inline void icb_srb(computer& c, memory_value_t modes) {
             auto& in1 = c.mem_ref(c.ip() + 1, mode_for<1, 1>(modes));
-            c.reg_ref<RC_RELBASE>() = in1;
+            c.reg_ref<RC_RELBASE>() += in1;
             c.ip() += 2;
         }
         static inline void icb_hlt(computer& c, memory_value_t) {

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "aoc.h"
 
@@ -44,7 +44,7 @@ namespace aoc {
 
     class computer {
     public:
-        using memory_value_t = long;
+        using memory_value_t = int64_t;
 
         enum instruction_code : memory_value_t {
             OP_ADD = 1,

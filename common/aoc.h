@@ -145,4 +145,9 @@ namespace aoc {
         }
         return n1;
     }
+
+    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    constexpr inline T lcm(T v1, T v2) {
+        return v1 * v2 / gcd(v1, v2);
+    }
 }

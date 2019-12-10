@@ -3,6 +3,7 @@
 #include "aoc.h"
 
 #define CF_HALTED 0x1
+#define CF_PAUSED 0x2
 
 namespace aoc {
     namespace detail {
@@ -44,6 +45,33 @@ namespace aoc {
     class computer {
     public:
         using memory_value_t = long;
+
+        enum instruction_code : memory_value_t {
+            OP_ADD = 1,
+            OP_MUL = 2,
+            OP_IN  = 3,
+            OP_OUT = 4,
+            OP_JNZ = 5,
+            OP_JZ  = 6,
+            OP_LT  = 7,
+            OP_EQ  = 8,
+            OP_SRB = 9,   // Set Relative Base
+            OP_HLT = 99,
+            OP_INVAL,
+        };
+
+        enum register_code : memory_value_t {
+            RC_IP,
+            RC_RELBASE,
+            RC_MAX_
+        };
+
+        enum addressing_mode : memory_value_t {
+            AM_POSITION = 0,
+            AM_IMMEDIATE = 1,
+            AM_RELBASE = 2,
+            AM_MAX_,
+        };
 
         computer() = default;
         computer(computer&&) = default;
@@ -99,6 +127,20 @@ namespace aoc {
             }
         }
 
+        void execute_with_pause(const std::set<instruction_code>& after) {
+            clear_flags(CF_HALTED | CF_PAUSED);
+            while (!has_flags(CF_HALTED)) {
+                auto raw = memory_.at(size_t(ip()));
+                auto code = raw % 100;
+                auto mode = raw / 100;
+                instruction_callbacks[int(code)](*this, mode);
+                if (after.count(instruction_code(code))) {
+                    set_flags(CF_PAUSED);
+                    return;
+                }
+            }
+        }
+
         void clear() {
             memory_.clear();
             registers_.fill(0);
@@ -149,7 +191,7 @@ namespace aoc {
         auto flags() const {
             return flags_;
         }
-        auto set_flags(memory_value_t flags) {
+        void set_flags(memory_value_t flags) {
             flags_ |= flags;
         }
         void clear_flags(memory_value_t flags) {
@@ -159,34 +201,14 @@ namespace aoc {
             return (flags_ & flags) == flags;
         }
 
+        bool is_halted() const {
+            return has_flags(CF_HALTED);
+        }
+        bool is_paused() const {
+            return has_flags(CF_PAUSED);
+        }
+
     private:
-        enum instruction_code : memory_value_t {
-            OP_ADD = 1,
-            OP_MUL = 2,
-            OP_IN  = 3,
-            OP_OUT = 4,
-            OP_JNZ = 5,
-            OP_JZ  = 6,
-            OP_LT  = 7,
-            OP_EQ  = 8,
-            OP_SRB = 9,   // Set Relative Base
-            OP_HLT = 99,
-            OP_INVAL,
-        };
-
-        enum register_code : memory_value_t {
-            RC_IP,
-            RC_RELBASE,
-            RC_MAX_
-        };
-
-        enum addressing_mode : memory_value_t {
-            AM_POSITION = 0,
-            AM_IMMEDIATE = 1,
-            AM_RELBASE = 2,
-            AM_MAX_,
-        };
-
         struct decoded_instruction_t {
             instruction_code code{OP_INVAL};
             memory_value_t modes{0};

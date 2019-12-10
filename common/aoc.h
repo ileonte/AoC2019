@@ -56,6 +56,23 @@ namespace fmt {
         }
     };
 
+    template <typename T>
+    struct formatter<std::set<T>> {
+        template <typename ParseContext>
+        constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+        template <typename FormatContext>
+        auto format(const std::set<T>& v, FormatContext &ctx) {
+            format_to(ctx.out(), "[");
+            if (v.size() > 0) {
+                format_to(ctx.out(), "{}", *std::cbegin(v));
+                for (auto i = std::next(std::cbegin(v)); i != std::cend(v); i++)
+                    format_to(ctx.out(), ", {}", *i);
+            }
+            return format_to(ctx.out(), "]");
+        }
+    };
+
     template <typename T1, typename T2>
     struct formatter<std::pair<T1, T2>> {
         template <typename ParseContext>
@@ -109,11 +126,23 @@ namespace aoc {
     }
 
     template <typename T>
-    constexpr T cpow(T base, T pow) {
+    constexpr inline T cpow(T base, T pow) {
         T ret{1};
         for (T p = 1; p <= pow; p++)
             ret *= base;
         return ret;
     }
 
+    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    constexpr inline T gcd(T v1, T v2) {
+        T n1 = std::abs(std::max(v1, v2));
+        T n2 = std::abs(std::min(v1, v2));
+        if (!n2) return 1;
+        while (n2) {
+            T t = n1;
+            n1 = n2;
+            n2 = t % n2;
+        }
+        return n1;
+    }
 }

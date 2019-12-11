@@ -117,14 +117,17 @@ namespace aoc {
             }
         }
 
+        inline void single_step() {
+            auto raw = memory_.at(size_t(ip()));
+            auto code = raw % 100;
+            auto mode = raw / 100;
+            instruction_callbacks[int(code)](*this, mode);
+        }
+
         void execute() {
             clear_flags(CF_HALTED);
-            while (!has_flags(CF_HALTED)) {
-                auto raw = memory_.at(size_t(ip()));
-                auto code = raw % 100;
-                auto mode = raw / 100;
-                instruction_callbacks[int(code)](*this, mode);
-            }
+            while (!has_flags(CF_HALTED))
+                single_step();
         }
 
         void execute_with_pause(const std::set<instruction_code>& after) {
@@ -137,6 +140,20 @@ namespace aoc {
                 if (after.count(instruction_code(code))) {
                     set_flags(CF_PAUSED);
                     return;
+                }
+            }
+        }
+
+        template <size_t N>
+        void execute_with_conditional_breakpoints(const std::function<bool(const computer&)>(&breakpoints)[N]) {
+            clear_flags(CF_HALTED | CF_PAUSED);
+            while (!has_flags(CF_HALTED)) {
+                single_step();
+                for (const auto& breakpoint : breakpoints) {
+                    if (breakpoint(*this)) {
+                        set_flags(CF_PAUSED);
+                        return;
+                    }
                 }
             }
         }

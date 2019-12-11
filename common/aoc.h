@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <unordered_map>
 #include <string_view>
 #include <charconv>
 #include <optional>
@@ -70,6 +71,20 @@ namespace fmt {
                     format_to(ctx.out(), ", {}", *i);
             }
             return format_to(ctx.out(), "]");
+        }
+    };
+
+    template <typename K, typename V>
+    struct formatter<std::unordered_map<K, V>> {
+        template <typename ParseContext>
+        constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+        template <typename FormatContext>
+        auto format(const std::unordered_map<K, V>& m, FormatContext &ctx) {
+            format_to(ctx.out(), "{{");
+            for (const auto& [k, v] : m)
+                format_to(ctx.out(), "\n   {} -> {}", k, v);
+            return format_to(ctx.out(), "{}}}", m.size() ? "\n" : "");
         }
     };
 
@@ -149,5 +164,12 @@ namespace aoc {
     template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
     constexpr inline T lcm(T v1, T v2) {
         return v1 * v2 / gcd(v1, v2);
+    }
+
+    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    constexpr inline T bitmask(size_t size, size_t final_shift = 0) {
+        T r{1};
+        for (size_t i = 1; i < size; i++) r = (r << 1) | 1;
+        return r << final_shift;
     }
 }

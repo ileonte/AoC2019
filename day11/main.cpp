@@ -166,15 +166,21 @@ static inline void part2(const aoc::computer& computer) {
         maxy = std::max(maxy, k.y);
     }
 
-    int dx = -minx;
-    int dy = -maxy;
+    int dx = minx;
+    int dy = miny;
+    auto h = size_t(std::abs(maxy - miny)) + 1;
+    auto w = size_t(std::abs(maxx - minx)) + 1;
 
     fmt::print("({} {}) - ({} {}) -> ({} {})\n", minx, miny, maxx, maxy, dx, dy);
 
-    std::vector<std::string> message(size_t(maxy - miny), std::string(size_t(maxx - minx), ' '));
+    std::vector<std::string> message(h, std::string(w, ' '));
     fmt::print("{} {}\n", message.size(), message[0].size());
-    for (const auto& [k, v] : path)
-        if (v) message[size_t(k.y - dy)][size_t(k.x - dx)] = '#';
+    for (const auto& [k, v] : path) {
+        if (!v) continue;
+        auto x = size_t(k.x - dx);
+        auto y = size_t(k.y - dy);
+        message[h - y - 1][x] = '#';
+    }
 
     for (const auto& v : message)
         fmt::print("{}\n", v);

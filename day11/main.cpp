@@ -156,8 +156,6 @@ static inline void part2(const aoc::computer& computer) {
 
     run(computer, path, 1);
 
-    fmt::print("DONE!\n");
-
     for (const auto& [k, v] : path) {
         minx = std::min(minx, k.x);
         miny = std::min(miny, k.y);
@@ -171,10 +169,7 @@ static inline void part2(const aoc::computer& computer) {
     auto h = size_t(std::abs(maxy - miny)) + 1;
     auto w = size_t(std::abs(maxx - minx)) + 1;
 
-    fmt::print("({} {}) - ({} {}) -> ({} {})\n", minx, miny, maxx, maxy, dx, dy);
-
     std::vector<std::string> message(h, std::string(w, ' '));
-    fmt::print("{} {}\n", message.size(), message[0].size());
     for (const auto& [k, v] : path) {
         if (!v) continue;
         auto x = size_t(k.x - dx);

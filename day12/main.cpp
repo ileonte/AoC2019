@@ -11,6 +11,13 @@ struct Vec3 {
         z += o.z;
     }
 
+    Vec3& operator=(const Vec3& o) {
+        x = o.x;
+        y = o.y;
+        z = o.z;
+        return *this;
+    }
+
     friend inline Vec3 operator+(const Vec3& v1, const Vec3& v2) {
         return {v1.x + v2.x, v1.y + v2.y, v1.z + v2.z};
     }
@@ -19,7 +26,18 @@ struct Vec3 {
         fmt::print(o, "<x={:3}, y={:3}, z={:3}>", v.x, v.y, v.z);
         return o;
     }
+
+    friend inline bool operator==(const Vec3& v1, const Vec3& v2) {
+        return v1.x == v2.x && v1.y == v2.y && v1.z == v2.z;
+    }
 };
+namespace std {
+    template <> struct hash<Vec3> {
+        size_t operator()(const Vec3& v) const {
+            return aoc::hash(v.x, v.y, v.z); // ?????
+        }
+    };
+}
 
 struct Planet {
     Vec3 pos;
@@ -55,6 +73,8 @@ struct Planet {
         return Planet{{x, y, z}, {0, 0, 0}};
     }
 
+
+
     inline int potential_energy() const {
         return std::abs(pos.x) + std::abs(pos.y) + std::abs(pos.z);
     }
@@ -65,69 +85,121 @@ struct Planet {
         return potential_energy() * kinetic_energy();
     }
 
+    Planet& operator=(const Planet& o) {
+        pos = o.pos;
+        vel = o.vel;
+        return *this;
+    }
+
     friend inline std::ostream& operator<<(std::ostream& o, const Planet& p) {
         fmt::print(o, "{{pos={}, vel={}}}", p.pos, p.vel);
         return o;
     }
+
+    friend inline bool operator==(const Planet& p1, const Planet& p2) {
+        return p1.pos == p2.pos && p1.vel == p2.vel;
+    }
 };
-
-static inline void apply_gravity(Planet& p1, Planet& p2) {
-    if (p1.pos.x != p2.pos.x) {
-        if (p1.pos.x < p2.pos.x) {
-            p1.vel.x += 1;
-            p2.vel.x -= 1;
-        } else {
-            p1.vel.x -= 1;
-            p2.vel.x += 1;
+namespace std {
+    template <> struct hash<Planet> {
+        size_t operator()(const Planet& p) const {
+            return aoc::hash(p.pos, p.vel);
         }
-    }
-    if (p1.pos.y != p2.pos.y) {
-        if (p1.pos.y < p2.pos.y) {
-            p1.vel.y += 1;
-            p2.vel.y -= 1;
-        } else {
-            p1.vel.y -= 1;
-            p2.vel.y += 1;
-        }
-    }
-    if (p1.pos.z != p2.pos.z) {
-        if (p1.pos.z < p2.pos.z) {
-            p1.vel.z += 1;
-            p2.vel.z -= 1;
-        } else {
-            p1.vel.z -= 1;
-            p2.vel.z += 1;
-        }
-    }
+    };
 }
 
-static inline void apply_velocity(Planet& p) {
-    p.pos += p.vel;
+struct PlanetSystem {
+    Planet p1, p2, p3, p4;
+
+    static inline std::optional<PlanetSystem> from_stdin(std::istream& in = std::cin) {
+        static constexpr const auto do_read = [](std::istream& in, Planet& dst) -> bool {
+            std::string in_s{};
+
+            if (!std::getline(in, in_s)) return {};
+            if (auto mb = Planet::from_string(in_s); mb) {
+                dst = mb.value();
+                return true;
+            }
+            return false;
+        };
+
+        PlanetSystem ret{};
+        if (!do_read(in, ret.p1)) return {};
+        if (!do_read(in, ret.p2)) return {};
+        if (!do_read(in, ret.p3)) return {};
+        if (!do_read(in, ret.p4)) return {};
+        return std::move(ret);
+    }
+
+    static inline void apply_gravity(Planet& p1, Planet& p2) {
+        if (p1.pos.x != p2.pos.x) {
+            if (p1.pos.x < p2.pos.x) {
+                p1.vel.x += 1;
+                p2.vel.x -= 1;
+            } else {
+                p1.vel.x -= 1;
+                p2.vel.x += 1;
+            }
+        }
+        if (p1.pos.y != p2.pos.y) {
+            if (p1.pos.y < p2.pos.y) {
+                p1.vel.y += 1;
+                p2.vel.y -= 1;
+            } else {
+                p1.vel.y -= 1;
+                p2.vel.y += 1;
+            }
+        }
+        if (p1.pos.z != p2.pos.z) {
+            if (p1.pos.z < p2.pos.z) {
+                p1.vel.z += 1;
+                p2.vel.z -= 1;
+            } else {
+                p1.vel.z -= 1;
+                p2.vel.z += 1;
+            }
+        }
+    }
+
+    static inline void apply_velocity(Planet& p) {
+        p.pos += p.vel;
+    }
+
+    inline void simulation_step() {
+        apply_gravity(p1, p2); apply_gravity(p3, p4);
+        apply_gravity(p1, p3); apply_gravity(p2, p4);
+        apply_gravity(p1, p4); apply_gravity(p2, p3);
+
+        apply_velocity(p1);
+        apply_velocity(p2);
+        apply_velocity(p3);
+        apply_velocity(p4);
+    }
+
+    size_t energy() const {
+        return p1.energy() + p2.energy() + p3.energy() + p4.energy();
+    }
+};
+namespace std {
+    template <>
+    struct hash<PlanetSystem> {
+        inline size_t operator()(const PlanetSystem& ps) const {
+            return aoc::hash(ps.p1, ps.p2, ps.p3, ps.p4);
+        }
+    };
 }
 
-static inline void simulation_step(std::vector<Planet>& planets) {
-    apply_gravity(planets.at(0), planets.at(1));
-    apply_gravity(planets.at(2), planets.at(3));
-
-    apply_gravity(planets.at(0), planets.at(2));
-    apply_gravity(planets.at(1), planets.at(3));
-
-    apply_gravity(planets.at(0), planets.at(3));
-    apply_gravity(planets.at(1), planets.at(2));
-
-    for (auto& p : planets) apply_velocity(p);
-}
-
-static inline void part1(const std::vector<Planet>& in_planets) {
-    std::vector<Planet> planets(in_planets);
+static inline void part1(const PlanetSystem& in_planets) {
+    PlanetSystem planets(in_planets);
 
     for (size_t iter = 0; iter < 1000; iter++)
-        simulation_step(planets);
+        planets.simulation_step();
 
-    int result = std::accumulate(std::begin(planets), std::end(planets), 0, [](int s, const Planet& p) -> int {
-        return s + p.energy();
-    });
-    fmt::print("{}\n", result);
+    fmt::print("{}\n", planets.energy());
+}
+
+static inline void part2(const PlanetSystem& in_planets) {
+    PlanetSystem planets(in_planets);
 }
 
 int main() {
@@ -135,32 +207,23 @@ int main() {
     std::string in{};
 
     if constexpr (DEBUG) {
-        planets.push_back(Planet::from_string("<x=-1, y=0, z=2>").value());
-        planets.push_back(Planet::from_string("<x=2, y=-10, z=-7>").value());
-        planets.push_back(Planet::from_string("<x=4, y=-8, z=8>").value());
-        planets.push_back(Planet::from_string("<x=3, y=5, z=-1>").value());
+        std::stringstream ss(
+            "<x=-1, y=0, z=2>\n"
+            "<x=2, y=-10, z=-7>\n"
+            "<x=4, y=-8, z=8>\n"
+            "<x=3, y=5, z=-1>"
+        );
 
+        PlanetSystem ps = PlanetSystem::from_stdin(ss).value();
         for (int i = 0; i < 10; i++)
-            simulation_step(planets);
-
-        fmt::print("{}\n", std::accumulate(std::begin(planets), std::end(planets), 0, [](int s, const Planet& p) -> int {
-            return s + p.energy();
-        }));
-
-        planets.clear();
+            ps.simulation_step();
+        fmt::print("{}\n", ps.energy());
     }
 
-    while (std::getline(std::cin, in)) {
-        auto maybe_planet = Planet::from_string(in);
-        if (maybe_planet) planets.push_back(maybe_planet.value());
+    if (auto mps = PlanetSystem::from_stdin(); mps) {
+        part1(mps.value());
+        part2(mps.value());
     }
-
-    if (planets.size() != 4) {
-        fmt::print(::stderr, "Not 4 planets!?\n");
-        return 1;
-    }
-
-    part1(planets);
 
     return 0;
 }

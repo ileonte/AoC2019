@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include <set>
+#include <unordered_set>
 #include <map>
 #include <unordered_map>
 #include <string_view>
@@ -14,6 +15,7 @@
 #include <numeric>
 #include <array>
 #include <deque>
+#include <sstream>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -64,13 +66,30 @@ namespace fmt {
 
         template <typename FormatContext>
         auto format(const std::set<T>& v, FormatContext &ctx) {
-            format_to(ctx.out(), "[");
+            format_to(ctx.out(), "{{");
             if (v.size() > 0) {
                 format_to(ctx.out(), "{}", *std::cbegin(v));
                 for (auto i = std::next(std::cbegin(v)); i != std::cend(v); i++)
                     format_to(ctx.out(), ", {}", *i);
             }
-            return format_to(ctx.out(), "]");
+            return format_to(ctx.out(), "}}");
+        }
+    };
+
+    template <typename T>
+    struct formatter<std::unordered_set<T>> {
+        template <typename ParseContext>
+        constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+        template <typename FormatContext>
+        auto format(const std::unordered_set<T>& v, FormatContext &ctx) {
+            format_to(ctx.out(), "{{");
+            if (v.size() > 0) {
+                format_to(ctx.out(), "{}", *std::cbegin(v));
+                for (auto i = std::next(std::cbegin(v)); i != std::cend(v); i++)
+                    format_to(ctx.out(), ", {}", *i);
+            }
+            return format_to(ctx.out(), "}}");
         }
     };
 
@@ -101,6 +120,33 @@ namespace fmt {
 }
 
 namespace aoc {
+    namespace detail {
+        inline constexpr size_t hash() {
+            return 0;
+        }
+
+        template <typename T>
+        inline constexpr size_t hash(const T& v) {
+            return std::hash<T>{}(v);
+        }
+
+        template <typename T1, typename T2>
+        inline constexpr size_t hash(const T1& t1, const T2& t2) {
+            size_t s1 = std::hash<T1>{}(t1);
+            size_t s2 = std::hash<T2>{}(t2);
+            return s1 ^ s2 + 0x9e3779b9 + (s1 << 6) + (s1 >> 2);
+        }
+
+    }
+    template <typename T, typename... Ts>
+    inline constexpr size_t combine_hashes(const T& s1, const Ts&... s2) {
+        return detail::hash(s1, s2...);
+    }
+    template <typename T, typename... Ts>
+    inline constexpr size_t hash(const T& t, const Ts& ...ts) {
+        return hash(t, detail::hash(ts)...);
+    }
+
     inline std::string_view trim(std::string_view sv) {
         while (std::isspace(sv.front())) sv.remove_prefix(1);
         while (std::isspace(sv.back())) sv.remove_suffix(1);

@@ -20,7 +20,7 @@ namespace std {
             } else {
                 size_t sx = size_t(p.x);
                 size_t sy = size_t(p.y);
-                return sx ^ sy + 0x9e3779b9 + (sx << 6) + (sx >> 2);
+                return aoc::combine_hashes(sx, sy);
             }
         }
     };

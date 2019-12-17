@@ -77,6 +77,8 @@ namespace aoc {
         computer(computer&&) = default;
         computer(const computer& other) = default;
 
+        computer& operator=(computer&& other) = default;
+
         static inline computer read_initial_state() {
             computer ret{};
             std::string buff;
@@ -158,12 +160,16 @@ namespace aoc {
             }
         }
 
-        void clear() {
-            memory_.clear();
+        inline void reset() {
             registers_.fill(0);
             inputs_.clear();
             outputs_.clear();
             flags_ = 0;
+        }
+
+        inline void clear() {
+            memory_.clear();
+            reset();
         }
 
         const auto& inputs() const {

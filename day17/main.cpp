@@ -69,8 +69,8 @@ public:
     }
 
     size_t length() const {
-        if (is_vertical()) return p2_.y - p1_.y;
-        return p2_.x - p1_.x;
+        if (is_vertical()) return p2_.y - p1_.y + 1;
+        return p2_.x - p1_.x + 1;
     }
 
     std::string_view walk_instructions(direction& current_direction, point& current_position) {
@@ -83,19 +83,19 @@ public:
                 new_pos = p2_;
                 switch (current_direction) {
                     case UP: {
-                        buff = fmt::format("R,{}", length());
+                        buff = fmt::format("R,{}", length() - 1);
                         break;
                     }
                     case DOWN: {
-                        buff = fmt::format("L,{}", length());
+                        buff = fmt::format("L,{}", length() - 1);
                         break;
                     }
                     case LEFT: {
-                        buff = fmt::format("R,R,{}", length());
+                        buff = fmt::format("R,R,{}", length() - 1);
                         break;
                     }
                     case RIGHT:
-                        buff = fmt::format("{}", length());
+                        buff = fmt::format("{}", length() - 1);
                         break;
                 }
             } else {
@@ -104,19 +104,19 @@ public:
                 new_pos = p1_;
                 switch (current_direction) {
                     case UP: {
-                        buff = fmt::format("L,{}", length());
+                        buff = fmt::format("L,{}", length() - 1);
                         break;
                     }
                     case DOWN: {
-                        buff = fmt::format("R,{}", length());
+                        buff = fmt::format("R,{}", length() - 1);
                         break;
                     }
                     case LEFT: {
-                        buff = fmt::format("{}", length());
+                        buff = fmt::format("{}", length() - 1);
                         break;
                     }
                     case RIGHT: {
-                        buff = fmt::format("L,L,{}", length());
+                        buff = fmt::format("L,L,{}", length() - 1);
                         break;
                     }
                 }
@@ -128,19 +128,19 @@ public:
                 new_pos = p2_;
                 switch (current_direction) {
                     case UP: {
-                        buff = fmt::format("L,L,{}", length());
+                        buff = fmt::format("L,L,{}", length() - 1);
                         break;
                     }
                     case DOWN: {
-                        buff = fmt::format("{}", length());
+                        buff = fmt::format("{}", length() - 1);
                         break;
                     }
                     case LEFT: {
-                        buff = fmt::format("L,{}", length());
+                        buff = fmt::format("L,{}", length() - 1);
                         break;
                     }
                     case RIGHT: {
-                        buff = fmt::format("R,{}", length());
+                        buff = fmt::format("R,{}", length() - 1);
                         break;
                     }
                 }
@@ -150,19 +150,19 @@ public:
                 new_pos = p1_;
                 switch (current_direction) {
                     case UP: {
-                        buff = fmt::format("{}", length());
+                        buff = fmt::format("{}", length() - 1);
                         break;
                     }
                     case DOWN: {
-                        buff = fmt::format("L,L,{}", length());
+                        buff = fmt::format("L,L,{}", length() - 1);
                         break;
                     }
                     case LEFT: {
-                        buff = fmt::format("R,{}", length());
+                        buff = fmt::format("R,{}", length() - 1);
                         break;
                     }
                     case RIGHT: {
-                        buff = fmt::format("L,{}", length());
+                        buff = fmt::format("L,{}", length() - 1);
                         break;
                     }
                 }
@@ -184,7 +184,10 @@ public:
 };
 
 struct scaffolding {
+    static constexpr const size_t program_memory_size = 128 * 1024;
+
     std::vector<std::vector<char>> data;
+    std::string original_program;
     aoc::computer comp;
     point robot_position;
     direction robot_direction;
@@ -211,10 +214,9 @@ struct scaffolding {
             static point p2{};
 
             if (line >= data.size()) {
-                if (in_segment && p1 != p2) {
-                    in_segment = false;
+                if (in_segment && p1 != p2)
                     ret.emplace_back(p1, p2);
-                }
+                in_segment = false;
                 return;
             }
 
@@ -279,14 +281,45 @@ struct scaffolding {
         return program;
     }
 
-    static inline scaffolding read() {
+    inline auto run_cleaning_program(const std::array<std::string, 5>& program) {
+        comp.reset(comp.memory().size() - 100, original_program.size());
+        comp.clear();
+        comp.add_memory_values(original_program);
+        comp.expand_memory(scaffolding::program_memory_size);
+        comp.mem_ref(0, aoc::computer::AM_IMMEDIATE) = 2;
+        for (const auto& line : program) {
+            auto sv_line = std::string_view(line);
+            while (sv_line.back() == ',') sv_line.remove_suffix(1);
+            for (auto ch : sv_line)
+                comp.add_input(ch);
+            comp.add_input('\n');
+        }
+        if constexpr (DEBUG) {
+            fmt::print("INPUTS: {}\n", comp.inputs());
+            for (char ch : comp.inputs())
+                fmt::print("{}", ch);
+            fmt::print("END INPUTS\n");
+        }
+        comp.execute();
+        comp.mem_ref(0, aoc::computer::AM_IMMEDIATE) = 1;
+        return comp.outputs().back();
+    }
+
+    static inline scaffolding read(std::istream& in = std::cin) {
         scaffolding ret{};
-        ret.comp = aoc::computer::read_initial_state();
-        ret.comp.expand_memory(128 * 1024);
+        std::getline(in, ret.original_program);
+        ret.comp = aoc::computer();
+        ret.comp.add_memory_values(ret.original_program);
+        ret.comp.expand_memory(scaffolding::program_memory_size);
         ret.comp.execute();
 
         std::vector<char> line{};
         line.reserve(512);
+
+        if constexpr (DEBUG) {
+            for (char ch : ret.comp.outputs())
+                fmt::print("{}", ch);
+        }
 
         for (char ch : ret.comp.outputs()) {
             switch (ch) {
@@ -307,7 +340,8 @@ struct scaffolding {
                 }
                 case '\n': [[fallthrough]];
                 case '\r': {
-                    ret.data.emplace_back(std::move(line));
+                    if (!aoc::trim(std::string_view(line.data(), line.size())).empty())
+                        ret.data.emplace_back(std::move(line));
                     line = std::vector<char>();
                     line.reserve(512);
                     break;
@@ -342,8 +376,6 @@ static inline void part1(const scaffolding& s) {
 }
 
 static inline void part2(scaffolding& s) {
-    auto program = s.walk_instructions();
-
     static constexpr const auto possible_functions = [](const std::string& s) -> std::vector<std::string_view> {
         auto parts = aoc::str_split(s, ',');
         std::vector<std::string_view> ret{};
@@ -371,15 +403,100 @@ static inline void part2(scaffolding& s) {
         return ret;
     };
 
-    fmt::print("{}\n", program);
-    auto functions = possible_functions(program);
-    for (auto f : functions)
-        fmt::print("{}\n", f);
+    static constexpr const auto replace_function = [](const std::string& s, std::string_view f, std::string_view fn) -> std::string {
+        std::string ret(s);
+        size_t idx = ret.find(f.data(), 0, f.size());
+        while (idx != ret.npos) {
+            ret.replace(idx, f.size(), fn);
+            idx = ret.find(f.data(), idx + fn.size(), f.size());
+        }
+        return ret;
+    };
+
+    static constexpr const auto is_final_program = [](std::string_view p) -> bool {
+        if (p.size() > 20) return false;
+        for (auto ch : p) {
+            switch (ch) {
+                case 'A': [[fallthrough]];
+                case 'B': [[fallthrough]];
+                case 'C': [[fallthrough]];
+                case ',': continue;
+                default: return false;
+            }
+        }
+        return true;
+    };
+
+    std::array<std::string, 5> program_input{
+        "", /* main movement routine */
+        "", /* A */
+        "", /* B */
+        "", /* C */
+        "n" /* display control */
+    };
+
+    auto prog_full = s.walk_instructions();
+    auto functions_A = possible_functions(prog_full);
+    for (auto f_A : functions_A) {
+        auto prog_A = replace_function(prog_full, f_A, "A,");
+        if (is_final_program(prog_A)) {
+            program_input[0] = std::move(prog_A);
+            program_input[1] = f_A;
+            goto done;
+        }
+
+        auto functions_B = possible_functions(prog_A);
+        for (auto f_B : functions_B) {
+            auto prog_B = replace_function(prog_A, f_B, "B,");
+            if (is_final_program(prog_B)) {
+                program_input[0] = std::move(prog_B);
+                program_input[1] = f_A;
+                program_input[2] = f_B;
+                goto done;
+            }
+
+            auto functions_C = possible_functions(prog_B);
+            for (auto f_C : functions_C) {
+                auto prog_C = replace_function(prog_B, f_C, "C,");
+
+                if (is_final_program(prog_C)) {
+                    program_input[0] = std::move(prog_C);
+                    program_input[1] = f_A;
+                    program_input[2] = f_B;
+                    program_input[3] = f_C;
+                    goto done;
+                }
+            }
+        }
+    }
+
+done:
+    auto ret = s.run_cleaning_program(program_input);
+    if constexpr (DEBUG) {
+        for (auto ch : s.comp.outputs())
+            fmt::print("{}", char(ch));
+
+        std::string prog_rebuilt{};
+        for (auto ch : program_input[0]) {
+            switch (ch) {
+                case 'A': [[fallthrough]];
+                case 'B': [[fallthrough]];
+                case 'C': {
+                    prog_rebuilt.append(program_input[ch - 'A' + 1]);
+                    break;
+                }
+                default: continue;
+            }
+        }
+        fmt::print("ORIGINAL: {}\n", prog_full);
+        fmt::print("REBUILT : {}\n", prog_rebuilt);
+        fmt::print("SAME    : {}\n", prog_full == prog_rebuilt);
+    }
+    fmt::print("{}\n", ret);
 }
 
 int main() {
     auto s = scaffolding::read();
-    s.print();
 
     part1(s);
     part2(s);

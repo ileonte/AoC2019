@@ -103,7 +103,9 @@ static inline void part1(std::string_view in, size_t rounds) {
             while (true) {
                 if (auto mb = p.next_non_zero(); mb) {
                     const auto& b = mb.value();
-                    int tmp = b.val * std::accumulate(&in_n[b.pos], &in_n[b.pos + b.count], 0);
+                    int tmp = b.val * std::accumulate(in_n.data() + b.pos,
+                                                      in_n.data() + b.pos + b.count,
+                                                      0);
                     sum += tmp;
                 } else {
                     break;
@@ -113,7 +115,7 @@ static inline void part1(std::string_view in, size_t rounds) {
         }
     }
 
-    fmt::print("{}\n", fmt::join(&in_n[0], &in_n[8], ""));
+    fmt::print("{}\n", fmt::join(in_n.data(), in_n.data() + std::min(in_n.size(), size_t(8)), ""));
 }
 
 template <typename T>
@@ -137,7 +139,7 @@ static inline void part2(std::string_view in, size_t rounds, size_t multiplier =
 
     std::vector<int> in_d(global_remaining, 0);
     if (buffer_remaining)
-        std::copy(&in_n[in_n.size() - buffer_remaining], &in_n[in_n.size()], &in_d[0]);
+        std::copy(in_n.data() + (in_n.size() - buffer_remaining), in_n.data() + in_n.size(), &in_d[0]);
     for (size_t i = 0; i < buffer_count; i++)
         std::copy(in_n.begin(), in_n.end(), &in_d[buffer_remaining + i * in_n.size()]);
 
@@ -149,7 +151,7 @@ static inline void part2(std::string_view in, size_t rounds, size_t multiplier =
         }
     }
 
-    fmt::print("{}\n", fmt::join(&in_d[0], &in_d[8], ""));
+    fmt::print("{}\n", fmt::join(in_d.data(), in_d.data() + std::min(in_d.size(), size_t(8)), ""));;
 }
 
 int main() {

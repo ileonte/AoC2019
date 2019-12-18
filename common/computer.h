@@ -79,11 +79,11 @@ namespace aoc {
 
         computer& operator=(computer&& other) = default;
 
-        static inline computer read_initial_state() {
+        static inline computer read_initial_state(std::istream& in = std::cin) {
             computer ret{};
             std::string buff;
             std::vector<memory_value_t> memory;
-            while (std::getline(std::cin, buff)) {
+            while (std::getline(in, buff)) {
                 if (!ret.add_memory_values(buff))
                     break;
             }
@@ -160,16 +160,20 @@ namespace aoc {
             }
         }
 
-        inline void reset() {
+        inline void reset(size_t memory_clear_offset = size_t(-1), size_t memory_clear_size = 0) {
             registers_.fill(0);
             inputs_.clear();
             outputs_.clear();
             flags_ = 0;
+            if (memory_clear_offset < memory_.size() && memory_clear_size > 0)
+                std::fill(memory_.data() + memory_clear_offset,
+                          memory_.data() + memory_clear_offset + std::min(memory_.size() - memory_clear_offset, memory_clear_size),
+                          0);
         }
 
         inline void clear() {
-            memory_.clear();
             reset();
+            memory_.clear();
         }
 
         const auto& inputs() const {
@@ -231,6 +235,15 @@ namespace aoc {
             return has_flags(CF_PAUSED);
         }
 
+        inline memory_value_t& mem_ref(memory_value_t address, addressing_mode mode = AM_POSITION) {
+            switch (mode) {
+                case AM_POSITION: return memory_.at(size_t(memory_.at(size_t(address))));
+                case AM_IMMEDIATE: return memory_.at(size_t(address));
+                case AM_RELBASE: return memory_.at(size_t(memory_.at(size_t(address)) + reg_ref<RC_RELBASE>()));
+                default: std::abort();
+            }
+        }
+
     private:
         struct decoded_instruction_t {
             instruction_code code{OP_INVAL};
@@ -244,15 +257,6 @@ namespace aoc {
 
         inline memory_value_t& ip() {
             return reg_ref<RC_IP>();
-        }
-
-        inline memory_value_t& mem_ref(memory_value_t address, addressing_mode mode = AM_POSITION) {
-            switch (mode) {
-                case AM_POSITION: return memory_.at(size_t(memory_.at(size_t(address))));
-                case AM_IMMEDIATE: return memory_.at(size_t(address));
-                case AM_RELBASE: return memory_.at(size_t(memory_.at(size_t(address)) + reg_ref<RC_RELBASE>()));
-                default: std::abort();
-            }
         }
 
         template <memory_value_t param, memory_value_t max_params>

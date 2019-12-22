@@ -16,9 +16,12 @@
 #include <array>
 #include <deque>
 #include <sstream>
+#include <chrono>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
+
+#include <cerrno>
 
 #if !defined(DEBUG)
 #define DEBUG 0
@@ -218,4 +221,44 @@ namespace aoc {
         for (size_t i = 1; i < size; i++) r = (r << 1) | 1;
         return r << final_shift;
     }
+
+    template <typename Callable, typename... Args>
+    inline std::chrono::nanoseconds time_call(const Callable& f, Args... args)
+    {
+        auto start = std::chrono::steady_clock::now();
+        f(args...);
+        auto end = std::chrono::steady_clock::now();
+        return end - start;
+    }
 }
+
+namespace aoc::detail::defer {
+    class helper {
+    public:
+        template <typename Callable>
+        class helper_impl {
+        public:
+            helper_impl(Callable c) : call_(c) {}
+            ~helper_impl() { call_(); }
+        private:
+            Callable call_;
+        };
+
+        static inline const helper& instance() {
+            static helper g_instance;
+            return g_instance;
+        }
+
+        template <typename Callable>
+        inline helper_impl<Callable> operator<<(Callable c) const { return c; }
+    };
+}
+
+#define _AOC_DEFERHACK_UNUSED_ATTR_DEF_ [[maybe_unused]]
+
+#define _aoc_deferhack_cathack_2(a, b) a ## b
+#define _aoc_deferhack_cathack_1(a, b) _aoc_deferhack_cathack_2(a, b)
+#define defer \
+    _AOC_DEFERHACK_UNUSED_ATTR_DEF_ \
+    const auto& _aoc_deferhack_cathack_1(_deferhack_val_for_line_, __LINE__) = \
+        aoc::detail::defer::helper::instance() << [&]()

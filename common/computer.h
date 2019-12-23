@@ -4,6 +4,7 @@
 
 #define CF_HALTED 0x1
 #define CF_PAUSED 0x2
+#define CF_DEFAULT_INPUT 0x4
 
 namespace aoc {
     namespace detail {
@@ -63,6 +64,7 @@ namespace aoc {
         enum register_code : memory_value_t {
             RC_IP,
             RC_RELBASE,
+            RC_DEFAULT_INPUT,
             RC_MAX_
         };
 
@@ -77,6 +79,7 @@ namespace aoc {
         computer(computer&&) = default;
         computer(const computer& other) = default;
 
+        computer& operator=(const computer& other) = default;
         computer& operator=(computer&& other) = default;
 
         static inline computer read_initial_state(std::istream& in = std::cin) {
@@ -235,6 +238,11 @@ namespace aoc {
             return has_flags(CF_PAUSED);
         }
 
+        void set_default_input(memory_value_t val) {
+            set_flags(CF_DEFAULT_INPUT);
+            reg_ref<RC_DEFAULT_INPUT>() = val;
+        }
+
         inline memory_value_t& mem_ref(memory_value_t address, addressing_mode mode = AM_POSITION) {
             switch (mode) {
                 case AM_POSITION: return memory_.at(size_t(memory_.at(size_t(address))));
@@ -286,8 +294,12 @@ namespace aoc {
         }
         static inline void icb_in(computer& c, memory_value_t modes) {
             auto& out = c.mem_ref(c.ip() + 1, mode_for<1, 1>(modes));
-            out = c.inputs_.front();
-            c.inputs_.pop_front();
+            if (c.inputs_.empty() && c.has_flags(CF_DEFAULT_INPUT))
+                out = c.reg_ref<RC_DEFAULT_INPUT>();
+            else {
+                out = c.inputs_.front();
+                c.inputs_.pop_front();
+            }
             c.ip() += 2;
         }
         static inline void icb_out(computer& c, memory_value_t modes) {

@@ -5,7 +5,7 @@ enum shuffle_type {
     cut,
     deal_with_increment,
 };
-static std::ostream& operator<<(std::ostream& out, shuffle_type t) {
+static inline std::ostream& operator<<(std::ostream& out, shuffle_type t) {
     switch (t) {
         case deal_into_new_stack: {
             out << "deal into new stack";
@@ -29,7 +29,7 @@ struct shuffle_action {
 
     inline int64_t apply(int64_t deck_size, int64_t current_position) const {
         assert(deck_size > 2);
-        assert(std::clamp(current_position, int64_t(0), deck_size) == current_position);
+        assert(std::clamp<int64_t>(current_position, 0, deck_size) == current_position);
         switch (type) {
             case deal_into_new_stack:
                 return deck_size - current_position - 1;

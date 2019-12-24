@@ -3,12 +3,15 @@
 #include "grid.h"
 
 namespace aoc::pathfinding {
-    using tile_type = aoc::grid::tile_type;
-    using point = aoc::grid::point;
-
     class AStar {
     public:
-        struct node {
+        using Grid = aoc::grid::Grid;
+        using tile_type = aoc::grid::tile_type;
+        using point = aoc::grid::point;
+
+        static constexpr const inline bool can_move_diagonally = false;
+
+        struct node_light {
             tile_type type{tile_type::wall};
             point pos{};
             point parent{-1, -1};
@@ -17,21 +20,18 @@ namespace aoc::pathfinding {
 
             inline int f_cost() const { return g_cost + h_cost; }
         };
+        struct node : public node_light {
+            std::vector<point> special_neighbours{};
+        };
 
         inline bool is_empty() const { return board_.empty(); };
         inline bool is_done() const { return !is_empty() && !path_.empty(); }
-        inline bool is_reachable() const {
-            if (!is_done()) return true;
-            return path_.front() == end_;
-        }
         inline int width() const { return is_empty() ? 0 : board_.front().size(); }
         inline int height() const { return is_empty() ? 0 : board_.size(); }
         inline void clear() {
             board_.clear();
             open_.clear();
             closed_.clear();
-            start_ = {};
-            end_ = {};
             path_.clear();
         }
 
@@ -57,33 +57,24 @@ namespace aoc::pathfinding {
             return board_[p.y][p.x];
         }
 
-        inline bool reset(point start, point end) {
-            if (is_blocked(start) || is_blocked(end))
-                return false;
-
-            start_ = start;
-            end_ = end;
-
+        inline bool reset() {
             open_.clear();
             closed_.clear();
             path_.clear();
-
-            open_.push_back(start_);
 
             for (auto& line : board_) {
                 for (auto& node : line) {
                     node.g_cost = std::numeric_limits<int>::max();
                     node.h_cost = 0;
+                    node.parent = {-1, -1};
                 }
             }
-            at(start_).g_cost = 0;
-            at(end_).g_cost = 0;
 
             return true;
         }
 
-        inline bool init(const aoc::grid::Grid& grid) {
-            if (grid.is_empty() || !grid.start_point().has_value() || !grid.end_point().has_value())
+        inline bool init(const Grid& grid) {
+            if (grid.is_empty())
                 return false;
 
             clear();
@@ -92,61 +83,73 @@ namespace aoc::pathfinding {
                 const auto& raw_line = grid.raw_grid()[y];
                 std::vector<node> line(raw_line.size(), node{});
                 for (size_t x = 0; x < raw_line.size(); x++) {
-                    line[x] = {
-                        /* type   */ raw_line[x],
-                        /* pos    */ {(int)x, (int)y},
-                        /* parent */ {-1, -1},
-                        /* g_cost */ std::numeric_limits<int>::max(),
-                        /* h_cost */ 0
-                    };
+                    line[x].type = raw_line[x];
+                    line[x].pos.x = x;
+                    line[x].pos.y = y;
+                    line[x].special_neighbours = grid.special_neighours(line[x].pos);
                 }
                 board_.push_back(std::move(line));
             }
 
-            if (!reset(grid.start_point().value(), grid.end_point().value())) {
+            if (!reset()) {
                 clear();
                 return false;
             }
             return true;
         }
 
-        inline void step() {
+        inline void step(const point& start, const point& end) {
             if (is_done()) return;
 
             if (open_.empty()) {
-                path_.push_back(start_);
+                if (is_blocked(start) || is_blocked(end))
+                    return;
+
+                open_.push_back(start);
+                at(start).g_cost = 0;
+                at(end).g_cost = 0;
                 return;
             }
 
             auto current_point = get_min_open();
             closed_.push_back(current_point);
 
-            if (current_point == end_) {
-                point it = end_;
-                while (!(it == start_)) {
+            if (current_point == end) {
+                point it = end;
+                while (!(it == start)) {
                     path_.push_back(it);
                     it = at(it).parent;
                 }
                 return;
             }
 
-            std::vector<node> neighbors{};
-            neighbors_of(current_point, neighbors);
-            for (auto neighbor : neighbors) {
-                if (node_is_closed(neighbor.pos)) continue;
+            auto& current_node = at(current_point);
+            std::vector<node_light> neighbours{};
+            init_neighbours(current_node, neighbours, end);
+            for (auto& neighbour : neighbours) {
+                if (node_is_closed(neighbour.pos)) continue;
 
-                node& current_neighbor = at(neighbor.pos);
-                bool is_open = node_is_open(neighbor.pos);
+                node& current_neighbor = at(neighbour.pos);
+                bool is_open = node_is_open(neighbour.pos);
                 bool better_path = (current_neighbor.g_cost != std::numeric_limits<int>::max());
-                better_path = better_path && (neighbor.f_cost() < current_neighbor.f_cost());
+                better_path = better_path && (neighbour.f_cost() < current_neighbor.f_cost());
                 if (!is_open || better_path) {
-                    current_neighbor.g_cost = neighbor.g_cost;
-                    current_neighbor.h_cost = neighbor.h_cost;
-                    current_neighbor.parent = neighbor.parent;
+                    current_neighbor.g_cost = neighbour.g_cost;
+                    current_neighbor.h_cost = neighbour.h_cost;
+                    current_neighbor.parent = neighbour.parent;
 
-                    if (!is_open) open_.push_back(neighbor.pos);
+                    if (!is_open) open_.push_back(neighbour.pos);
                 }
             }
+        }
+
+        inline const auto& find_path(const point& start, const point& end) {
+            reset();
+
+            while (!is_done())
+                step(start, end);
+
+            return path_;
         }
 
         inline const auto& open_set() const { return open_; }
@@ -154,12 +157,6 @@ namespace aoc::pathfinding {
         inline const auto& board() const { return board_; }
 
         inline const auto& path() const { return path_; }
-
-        inline point start() const { return start_; }
-        inline point end() const { return end_; }
-
-        inline bool can_move_diagonally() const { return can_move_diagonally_; }
-        inline void can_move_diagonally(bool yesno) { can_move_diagonally_ = yesno; }
 
     private:
         static inline int shortest_path(point p1, point p2) {
@@ -194,40 +191,54 @@ namespace aoc::pathfinding {
             return min_n;
         }
 
-        inline void neighbors_of(point p, std::vector<node>& neighbors) {
-            static const auto add_neighbor = [](AStar* astar, point parent_point, point neighbor_point,
-                    int g_inc, std::vector<node>& neighbors) {
+        inline void init_neighbours(node& n, std::vector<node_light>& neighbors, const point& end) {
+            static constexpr const auto add_neighbor = [](const AStar* astar, const node& parent_node, point neighbor_point,
+                    int g_inc, std::vector<node_light>& neighbors, const point& end) {
                 if (!astar->is_blocked(neighbor_point)) {
-                    const node& parent_node = astar->at(parent_point);
-                    node new_node {
-                        /* type   */ parent_node.type,
-                        /* pos    */ neighbor_point,
-                        /* parent */ parent_point,
-                        /* g_cost */ parent_node.g_cost + g_inc,
-                        /* h_cost */ astar->can_move_diagonally() ? shortest_path(neighbor_point, astar->end()) : manhattan(neighbor_point, astar->end())
-                    };
-                    neighbors.push_back(new_node);
+                    if constexpr (can_move_diagonally) {
+                        node_light new_node {
+                            /* type   */ parent_node.type,
+                            /* pos    */ neighbor_point,
+                            /* parent */ parent_node.pos,
+                            /* g_cost */ parent_node.g_cost + g_inc,
+                            /* h_cost */ shortest_path(neighbor_point, end)
+                        };
+                        neighbors.push_back(new_node);
+                    } else {
+                        node_light new_node {
+                            /* type   */ parent_node.type,
+                            /* pos    */ neighbor_point,
+                            /* parent */ parent_node.pos,
+                            /* g_cost */ parent_node.g_cost + g_inc,
+                            /* h_cost */ manhattan(neighbor_point, end)
+                        };
+                        neighbors.push_back(new_node);
+                    }
                 }
             };
 
-            neighbors.reserve(8);
             neighbors.clear();
 
-            if (can_move_diagonally_) {
-                add_neighbor(this, p, {p.x - 1, p.y - 1}, 14, neighbors);
-                add_neighbor(this, p, {p.x    , p.y - 1}, 10, neighbors);
-                add_neighbor(this, p, {p.x + 1, p.y - 1}, 14, neighbors);
-                add_neighbor(this, p, {p.x - 1, p.y    }, 10, neighbors);
-                add_neighbor(this, p, {p.x + 1, p.y    }, 10, neighbors);
-                add_neighbor(this, p, {p.x - 1, p.y + 1}, 14, neighbors);
-                add_neighbor(this, p, {p.x    , p.y + 1}, 10, neighbors);
-                add_neighbor(this, p, {p.x + 1, p.y + 1}, 14, neighbors);
+            if constexpr (can_move_diagonally) {
+                neighbors.reserve(8 + n.special_neighbours.size());
+                add_neighbor(this, n, {n.pos.x - 1, n.pos.y - 1}, 14, neighbors, end);
+                add_neighbor(this, n, {n.pos.x    , n.pos.y - 1}, 10, neighbors, end);
+                add_neighbor(this, n, {n.pos.x + 1, n.pos.y - 1}, 14, neighbors, end);
+                add_neighbor(this, n, {n.pos.x - 1, n.pos.y    }, 10, neighbors, end);
+                add_neighbor(this, n, {n.pos.x + 1, n.pos.y    }, 10, neighbors, end);
+                add_neighbor(this, n, {n.pos.x - 1, n.pos.y + 1}, 14, neighbors, end);
+                add_neighbor(this, n, {n.pos.x    , n.pos.y + 1}, 10, neighbors, end);
+                add_neighbor(this, n, {n.pos.x + 1, n.pos.y + 1}, 14, neighbors, end);
             } else {
-                add_neighbor(this, p, {p.x    , p.y - 1},  1, neighbors);
-                add_neighbor(this, p, {p.x - 1, p.y    },  1, neighbors);
-                add_neighbor(this, p, {p.x + 1, p.y    },  1, neighbors);
-                add_neighbor(this, p, {p.x    , p.y + 1},  1, neighbors);
+                neighbors.reserve(4 + n.special_neighbours.size());
+                add_neighbor(this, n, {n.pos.x    , n.pos.y - 1},  1, neighbors, end);
+                add_neighbor(this, n, {n.pos.x - 1, n.pos.y    },  1, neighbors, end);
+                add_neighbor(this, n, {n.pos.x + 1, n.pos.y    },  1, neighbors, end);
+                add_neighbor(this, n, {n.pos.x    , n.pos.y + 1},  1, neighbors, end);
             }
+
+            for (auto& np : n.special_neighbours)
+                add_neighbor(this, n, np, 0, neighbors, end);
         }
 
         inline bool node_is_closed(point p) const {
@@ -242,8 +253,5 @@ namespace aoc::pathfinding {
         std::vector<point> open_{};
         std::vector<point> closed_{};
         std::vector<point> path_{};
-        bool can_move_diagonally_{false};
-        point start_{};
-        point end_{};
     };
 }

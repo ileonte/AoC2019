@@ -8,10 +8,6 @@ namespace aoc::grid {
         int x{-1};
         int y{-1};
 
-        //    inline bool is_valid() const {
-        //        return x != -1 && y != -1;
-        //    }
-
         inline bool operator==(const point& other) const {
             return x == other.x && y == other.y;
         }
@@ -24,6 +20,13 @@ namespace aoc::grid {
 
     class Grid {
     public:
+        virtual inline std::optional<std::string> parse_special_tiles(std::vector<std::string_view>&) {
+            return {};
+        }
+        virtual inline std::vector<point> special_neighours(point) const {
+            return {};
+        }
+
         inline bool contains(point p) const {
             return !is_empty() && (std::clamp(p.x, 0, width() - 1) == p.x && std::clamp(p.y, 0, height() - 1) == p.y);
         }
@@ -37,46 +40,33 @@ namespace aoc::grid {
         }
         inline bool is_blocked(int x, int y) const { return is_blocked({x, y}); }
 
-        inline const auto& start_point() const { return start_point_; }
-        inline bool set_start_point(int x, int y) {
-            if (!contains(x, y)) return false;
-            start_point_ = {x, y};
-            return true;
-        }
-        inline bool set_start_point(point p) { return set_start_point(p.x, p.y); }
-
-        inline const auto& end_point() const { return end_point_; }
-        inline bool set_end_point(int x, int y) {
-            if (!contains(x, y)) return false;
-            end_point_ = {x, y};
-            return true;
-        }
-        inline bool set_end_point(point p) { return set_end_point(p.x, p.y); }
-
         inline void clear() {
-            *this = Grid();
+            grid_.clear();
+            labels_.clear();
         }
 
-        inline std::optional<std::string> load_from_file(const char* name) {
-            char buff[258]{};
+        inline std::optional<std::string> load_from_file(std::istream& in = std::cin) {
+            std::string buffer{std::istreambuf_iterator{in}, {}};
+            auto input_lines = aoc::str_split(buffer, '\n');
             std::vector<std::vector<tile_type>> lines;
             int line_count{1};
 
-            auto fp = std::fopen(name, "rt");
-            if (!fp)
-                return fmt::format("Failed to open '{}': {}", name, std::strerror(errno));
-            defer { std::fclose(fp); };
+            while (input_lines.size() > 0 && input_lines.back().empty())
+                input_lines.pop_back();
+            if (!input_lines.size())
+                return "Found no non-empty lines in input";
 
-            while (std::fgets(buff, sizeof(buff) - 1, fp) == buff) {
-                std::string_view line_view(buff);
-                if (line_view.back() != '\n')
-                    return fmt::format("Line {} is too long", line_count);
+            for (size_t i = 1; i < input_lines.size(); i++) {
+                if (input_lines.at(i).size() != input_lines.at(i - 1).size())
+                    return fmt::format("Invalid line length at line {}: expecting {}, got {}",
+                                       i + 1,
+                                       input_lines.at(i - 1).size(),
+                                       input_lines.at(i).size());
+            }
 
-                while (!line_view.empty() && std::isspace(line_view.front())) line_view.remove_prefix(1);
-                while (!line_view.empty() && std::isspace(line_view.back())) line_view.remove_suffix(1);
-                if (line_view.empty())
-                    return fmt::format("Line {} is empty or contains only white-space");
+            parse_special_tiles(input_lines);
 
+            for (auto& line_view : input_lines) {
                 if (!lines.empty()) {
                     if (line_view.size() != lines.back().size())
                         return fmt::format("Line {} has a different length to the previous line ({})",
@@ -89,17 +79,12 @@ namespace aoc::grid {
                 line.reserve(line_view.size());
                 for (char c : line_view) {
                     switch (c) {
+                        case ' ': [[fallthrough]];
                         case '#': {
                             line.push_back({});
                             break;
                         }
                         case '.': {
-                            line.push_back(tile_type::floor);
-                            break;
-                        }
-                        case 'E':
-                        case 'G': {
-                            /* we'll treat unit positions as empty floor for now */
                             line.push_back(tile_type::floor);
                             break;
                         }
@@ -112,7 +97,6 @@ namespace aoc::grid {
                 line_count++;
             }
 
-            clear();
             grid_ = std::move(lines);
 
             return {};
@@ -133,8 +117,37 @@ namespace aoc::grid {
 
     private:
         std::vector<std::vector<tile_type>> grid_{};
-        std::optional<point> start_point_{};
-        std::optional<point> end_point_{};
+        std::unordered_map<std::string, std::vector<point>> labels_{};
+    };
+}
+
+namespace fmt {
+    template <>
+    struct formatter<aoc::grid::Grid> {
+        template <typename ParseContext>
+        constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+        template <typename FormatContext>
+        auto format(const aoc::grid::Grid& grid, FormatContext &ctx) {
+            const auto& lines = grid.raw_grid();
+            for (const auto& line : lines) {
+                for (auto v : line)
+                    format_to(ctx.out(), "{}", v == aoc::grid::tile_type::wall ? '#' : '.');
+                format_to(ctx.out(), "\n");
+            }
+            return ctx.out();
+        }
+    };
+
+    template <>
+    struct formatter<aoc::grid::point> {
+        template <typename ParseContext>
+        constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+        template <typename FormatContext>
+        auto format(const aoc::grid::point& p, FormatContext &ctx) {
+            return format_to(ctx.out(), "{{{}, {}}}", p.x, p.y);
+        }
     };
 }
 
